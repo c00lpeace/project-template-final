@@ -84,6 +84,12 @@ class Document(Base):
     # 삭제 플래그
     is_deleted = Column('IS_DELETED', Boolean, nullable=False, server_default=false())
 
+    # Program 관련 필드
+    program_id = Column('PROGRAM_ID', String(50), ForeignKey('PROGRAMS.PROGRAM_ID'), nullable=True, index=True)
+    program_file_type = Column('PROGRAM_FILE_TYPE', String(50), nullable=True, index=True)
+    source_document_id = Column('SOURCE_DOCUMENT_ID', String(50), ForeignKey('DOCUMENTS.DOCUMENT_ID'), nullable=True, index=True)
+    knowledge_reference_id = Column('KNOWLEDGE_REFERENCE_ID', String(50), ForeignKey('KNOWLEDGE_REFERENCES.REFERENCE_ID'), nullable=True, index=True)
+
     def __repr__(self):
         return f"<Document(document_id='{self.document_id}', name='{self.document_name}', status='{self.status}')>"
     
@@ -169,6 +175,9 @@ class ProcessingJob(Base):
     result_data = Column(JSON, nullable=True)
     error_message = Column(Text, nullable=True)
     
+    # Program 참조 (ERD에 추가됨)
+    program_id = Column("PROGRAM_ID", String(50), ForeignKey("PROGRAMS.PROGRAM_ID"), nullable=True, index=True)
+    
     # 시간 정보
     started_at = Column(DateTime, default=datetime.utcnow)
     completed_at = Column(DateTime, nullable=True)
@@ -180,3 +189,6 @@ class ProcessingJob(Base):
 
 # 기존 코드와의 호환성을 위한 별칭들
 DocumentMetadata = Document
+
+# 새로 생성된 모델들을 import (plc_models.py에서)
+from .plc_models import Program, ProcessingFailure, PLC, PlantMaster, ProcessMaster, LineMaster, EquipmentGroupMaster, ProgramLLMDataChunk, Template, TemplateData, KnowledgeReference

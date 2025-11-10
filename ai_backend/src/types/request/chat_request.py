@@ -9,6 +9,7 @@ class UserMessageRequest(BaseModel):
     type: str = Field(default="user_message", description="메시지 타입")
     message: str = Field(..., min_length=1, max_length=4000, description="사용자 메시지")
     user_id: str = Field(default="user", description="사용자 ID")
+    plc_id: Optional[str] = Field(default=None, description="PLC ID (PLC 테이블의 ID)")
 
 
 class ClearConversationRequest(BaseModel):

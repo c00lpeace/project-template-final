@@ -5,6 +5,7 @@ from typing import Generator
 from fastapi import Depends
 from sqlalchemy.orm import Session
 from src.api.services.llm_chat_service import LLMChatService
+from src.api.services.program_service import ProgramService
 from src.api.services.document_service import DocumentService
 from src.api.services.user_service import UserService
 from src.api.services.group_service import GroupService
@@ -114,3 +115,7 @@ def get_group_service(
 ) -> GroupService:
     """그룹 관리 서비스 의존성 주입"""
     return GroupService(db=db)
+
+def get_program_service(db: Session = Depends(get_db)) -> ProgramService:
+    """프로그램 관리 서비스 의존성 주입"""
+    return ProgramService(db=db)

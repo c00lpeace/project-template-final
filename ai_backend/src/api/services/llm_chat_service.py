@@ -193,7 +193,7 @@ class LLMChatService:
         except Exception as e:
             raise HandledException(ResponseCode.UNDEFINED_ERROR, e=e)
     
-    def send_message_simple(self, chat_id: str, message: str, user_id: str = "user") -> dict:
+    def send_message_simple(self, chat_id: str, message: str, user_id: str = "user", plc_id: str = None) -> dict:
         """사용자 메시지를 처리하고 LLM 응답을 생성 (REST API용)"""
         try:
             # 비즈니스 로직 검증
@@ -208,14 +208,14 @@ class LLMChatService:
             
             # 사용자 메시지를 DB에 저장
             user_message_id = gen()
-            self.chat_crud.save_user_message(user_message_id, chat_id, user_id, message)
+            self.chat_crud.save_user_message(user_message_id, chat_id, user_id, message, plc_id=plc_id)
             
             # LLM 응답 생성 (캐시 무효화 없이)
             ai_response = asyncio.run(self._generate_ai_response(chat_id))
             
             # AI 응답을 DB에 저장
             ai_message_id = gen()
-            self.chat_crud.save_ai_message(ai_message_id, chat_id, user_id, ai_response, "completed")
+            self.chat_crud.save_ai_message(ai_message_id, chat_id, user_id, ai_response, "completed", plc_id=plc_id)
             
             # 메시지 저장 완료 후 캐시 무효화 (한 번만)
             if self.use_redis:
@@ -401,14 +401,14 @@ class LLMChatService:
         except Exception as e:
             raise HandledException(ResponseCode.UNDEFINED_ERROR, e=e)
     
-    def save_user_message(self, chat_id: str, message: str, user_id: str = "user") -> str:
+    def save_user_message(self, chat_id: str, message: str, user_id: str = "user", plc_id: str = None) -> str:
         """사용자 메시지를 저장하고 메시지 ID 반환"""
         # 세션 존재 확인 및 초기화
         self._ensure_chat_exists(chat_id)
         
         # 사용자 메시지를 DB에 저장
         user_message_id = gen()
-        self.chat_crud.save_user_message_simple(user_message_id, chat_id, user_id, message)
+        self.chat_crud.save_user_message_simple(user_message_id, chat_id, user_id, message, plc_id=plc_id)
         
         # 스트리밍에서는 캐시 무효화를 하지 않음 (성능 향상)
         # 대화 완료 후에만 캐시를 업데이트
@@ -416,7 +416,7 @@ class LLMChatService:
         
         return user_message_id
     
-    async def generate_ai_response_stream(self, chat_id: str, user_id: str = "user"):
+    async def generate_ai_response_stream(self, chat_id: str, user_id: str = "user", plc_id: str = None):
         """AI 응답을 스트리밍으로 생성"""
         ai_message_id = None
         ai_response_content = ""
@@ -502,7 +502,7 @@ class LLMChatService:
             ai_message_id = gen()
             
             # AI 응답을 진행중 상태로 DB에 저장
-            self.chat_crud.save_ai_message_generating(ai_message_id, chat_id, user_id)
+            self.chat_crud.save_ai_message_generating(ai_message_id, chat_id, user_id, plc_id=plc_id)
             
             async for chunk in stream:
                 # 취소 확인 (레디스 우선)
@@ -609,7 +609,8 @@ class LLMChatService:
                             message="⚠️ 응답이 취소되었습니다.",
                             message_type="assistant",
                             status="cancelled",
-                            is_cancelled=True
+                            is_cancelled=True,
+                            plc_id=plc_id
                         )
                             
                 except Exception as e:
@@ -757,7 +758,8 @@ class LLMChatService:
                 message="⚠️ 응답이 취소되었습니다.",
                 message_type="assistant",
                 status="cancelled",
-                is_cancelled=True
+                is_cancelled=True,
+                plc_id=None
             )
             
             # DB에 이미 저장되었으므로 메모리 저장 불필요

@@ -44,6 +44,9 @@ class ChatMessage(Base):
     is_deleted = Column('IS_DELETED', Boolean, nullable=False, server_default=false())
     is_cancelled = Column('IS_CANCELLED', Boolean, nullable=False, server_default=false())  # 취소된 메시지 표시
     
+    # PLC 연결 (PLC 테이블의 ID 참조)
+    plc_id = Column('PLC_ID', String(50), ForeignKey('PLC.ID'), nullable=True, index=True)
+    
     # External API 노드 처리 결과 저장용 (JSON)
     external_api_nodes = Column('EXTERNAL_API_NODES', JSON, nullable=True)
 

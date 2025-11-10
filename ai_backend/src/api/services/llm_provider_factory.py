@@ -421,12 +421,14 @@ class LLMProviderFactory:
     def _create_openai_provider() -> OpenAIProvider:
         """Create OpenAI provider"""
         api_key = os.getenv("OPENAI_API_KEY")
+        base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
         model = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo")
         max_tokens = int(os.getenv("OPENAI_MAX_TOKENS", "1000"))
         temperature = float(os.getenv("OPENAI_TEMPERATURE", "0.7"))
         
         return OpenAIProvider(
             api_key=api_key,
+            base_url=base_url,
             model=model,
             max_tokens=max_tokens,
             temperature=temperature

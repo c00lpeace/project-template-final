@@ -7,8 +7,10 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 from src.api.services.llm_chat_service import LLMChatService
-from src.core.dependencies import get_llm_chat_service
+from src.api.services.program_service import ProgramService
+from src.core.dependencies import get_db, get_llm_chat_service, get_program_service
 from src.types.request.chat_request import (
     ClearConversationRequest,
     CreateChatRequest,
@@ -44,7 +46,8 @@ def send_message(
     ai_response = llm_chat_service.send_message_simple(
         chat_id, 
         request.message, 
-        request.user_id
+        request.user_id,
+        request.plc_id
     )
     
     return AIResponse(
@@ -58,9 +61,14 @@ def send_message(
 async def send_message_stream(
     chat_id: str,
     request: UserMessageRequest,
-    llm_chat_service: LLMChatService = Depends(get_llm_chat_service)
+    db: Session = Depends(get_db),
+    llm_chat_service: LLMChatService = Depends(get_llm_chat_service),
+    program_service: ProgramService = Depends(get_program_service),
 ):
     """스트리밍 방식으로 메시지를 전송하고 AI 응답을 받습니다 (SSE)."""
+
+    # plc_id가 있으면 program_id 조회
+    program_id = program_service.get_program_id_from_plc_id(request.plc_id)
 
     async def generate_stream():
         # 청크를 전달하기 위한 큐
@@ -107,7 +115,7 @@ async def send_message_stream(
             try:
                 # 사용자 메시지 저장
                 user_message_id = llm_chat_service.save_user_message(
-                    chat_id, request.message, request.user_id
+                    chat_id, request.message, request.user_id, request.plc_id
                 )
 
                 # 사용자 메시지 전송

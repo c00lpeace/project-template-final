@@ -734,6 +734,7 @@
         </div>
         <div class="user-input-section">
             <input type="text" id="userNameInput" placeholder="사용자명을 입력하세요..." value="user">
+            <input type="text" id="plcIdInput" placeholder="PLC ID를 입력하세요 (선택사항)" style="margin-top: 8px;">
         </div>
         
         <!-- 문서 업로드 섹션 -->
@@ -1291,6 +1292,7 @@
             try {
                 // 스트리밍 요청
                 abortController = new AbortController();
+                const plcId = document.getElementById('plcIdInput').value.trim() || null;
                 const response = await fetch(`/api/v1/chat/${currentChatId}/stream`, {
                     method: 'POST',
                     headers: {
@@ -1299,7 +1301,8 @@
                     body: JSON.stringify({
                         type: 'user_message',
                         message: message,
-                        user_id: document.getElementById('userNameInput').value || 'user'
+                        user_id: document.getElementById('userNameInput').value || 'user',
+                        plc_id: plcId || null
                     }),
                     signal: abortController.signal
                 });

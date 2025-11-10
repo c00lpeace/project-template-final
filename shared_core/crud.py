@@ -11,7 +11,7 @@ from typing import Any, Dict, List, Optional
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
-from .models import Document, DocumentChunk, ProcessingJob
+from .models import Document, DocumentChunk, ProcessingJob, KnowledgeReference, ProcessingFailure, Program, ProgramLLMDataChunk
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,13 @@ class DocumentCRUD:
         processing_config: dict = None,
         processed_at: datetime = None,
         permissions: List[str] = None,
-        document_type: str = 'common'
+        document_type: str = 'common',
+        # Program 관련 필드
+        program_id: str = None,
+        program_file_type: str = None,
+        source_document_id: str = None,
+        # Knowledge Reference 관련 필드
+        knowledge_reference_id: str = None,
     ) -> Document:
         """문서 생성"""
         try:
@@ -80,6 +86,12 @@ class DocumentCRUD:
                 processed_at=processed_at,
                 permissions=permissions,
                 document_type=document_type,
+                # Program 관련 필드
+                program_id=program_id,
+                program_file_type=program_file_type,
+                source_document_id=source_document_id,
+                # Knowledge Reference 관련 필드
+                knowledge_reference_id=knowledge_reference_id,
                 create_dt=datetime.now()
             )
             self.db.add(document)
@@ -368,6 +380,30 @@ class DocumentCRUD:
             logger.error(f"문서 삭제 실패: {str(e)}")
             raise
 
+    def get_derived_documents(self, source_document_id: str) -> List[Document]:
+        """원본 파일에서 파생된 파일 목록 조회 (예: ZIP → JSON 파일들)"""
+        try:
+            return self.db.query(Document)\
+                .filter(Document.source_document_id == source_document_id)\
+                .filter(Document.is_deleted.is_(False))\
+                .order_by(Document.create_dt)\
+                .all()
+        except Exception as e:
+            logger.error(f"파생 파일 목록 조회 실패: {str(e)}")
+            raise
+
+    def get_documents_by_knowledge_reference(self, knowledge_reference_id: str) -> List[Document]:
+        """KnowledgeReference로 연결된 문서 목록 조회"""
+        try:
+            return self.db.query(Document)\
+                .filter(Document.knowledge_reference_id == knowledge_reference_id)\
+                .filter(Document.is_deleted.is_(False))\
+                .order_by(Document.create_dt)\
+                .all()
+        except Exception as e:
+            logger.error(f"KnowledgeReference로 문서 목록 조회 실패: {str(e)}")
+            raise
+
 
 class DocumentChunkCRUD:
     """DocumentChunk 관련 CRUD 작업을 처리하는 클래스"""
@@ -554,4 +590,226 @@ class ProcessingJobCRUD:
                 .all()
         except Exception as e:
             logger.error(f"문서 작업 목록 조회 실패: {str(e)}")
+            raise
+
+    def get_program_jobs(self, program_id: str, job_type: Optional[str] = None) -> List[ProcessingJob]:
+        """프로그램의 모든 작업 조회"""
+        try:
+            query = self.db.query(ProcessingJob).filter(ProcessingJob.program_id == program_id)
+            if job_type:
+                query = query.filter(ProcessingJob.job_type == job_type)
+            return query.order_by(desc(ProcessingJob.started_at)).all()
+        except Exception as e:
+            logger.error(f"프로그램 작업 목록 조회 실패: {str(e)}")
+            raise
+
+
+class ProgramCRUD:
+    """Program 관련 CRUD 작업을 처리하는 클래스"""
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    def create_program(
+        self,
+        program_id: str,
+        program_name: str,
+        create_user: str,
+        description: Optional[str] = None,
+        status: str = Program.STATUS_PREPARING,
+        is_used: bool = True,
+        **kwargs,
+    ) -> Program:
+        """프로그램 생성"""
+        try:
+            program = Program(
+                program_id=program_id,
+                program_name=program_name,
+                create_user=create_user,
+                description=description,
+                status=status,
+                is_used=is_used,
+                **kwargs,
+            )
+            self.db.add(program)
+            self.db.commit()
+            self.db.refresh(program)
+            return program
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"프로그램 생성 실패: {str(e)}")
+            raise
+
+    def get_program(self, program_id: str) -> Optional[Program]:
+        """프로그램 조회"""
+        try:
+            return (
+                self.db.query(Program)
+                .filter(Program.program_id == program_id)
+                .filter(Program.is_used.is_(True))
+                .first()
+            )
+        except Exception as e:
+            logger.error(f"프로그램 조회 실패: {str(e)}")
+            raise
+
+    def get_user_programs(self, user_id: str) -> List[Program]:
+        """사용자의 프로그램 목록 조회"""
+        try:
+            return (
+                self.db.query(Program)
+                .filter(Program.create_user == user_id)
+                .filter(Program.is_used.is_(True))
+                .order_by(desc(Program.create_dt))
+                .all()
+            )
+        except Exception as e:
+            logger.error(f"사용자 프로그램 목록 조회 실패: {str(e)}")
+            raise
+
+    def update_program(
+        self, program_id: str, update_user: Optional[str] = None, **kwargs
+    ) -> bool:
+        """프로그램 정보 업데이트"""
+        try:
+            program = self.get_program(program_id)
+            if program:
+                for key, value in kwargs.items():
+                    if hasattr(program, key):
+                        setattr(program, key, value)
+                # 수정 정보 업데이트
+                program.update_dt = datetime.now()
+                if update_user:
+                    program.update_user = update_user
+                self.db.commit()
+                return True
+            return False
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"프로그램 업데이트 실패: {str(e)}")
+            raise
+
+    def check_required_files(self, program_id: str) -> Dict[str, bool]:
+        """프로그램의 필수 파일 3개 존재 여부 확인"""
+        try:
+            from .models import Document
+
+            # Document 테이블에서 program_id와 program_file_type으로 필수 파일 조회
+            existing_files = (
+                self.db.query(Document.program_file_type)
+                .filter(Document.program_id == program_id)
+                .filter(Document.program_file_type.in_(Program.REQUIRED_FILE_TYPES))
+                .filter(Document.is_deleted.is_(False))
+                .distinct()
+                .all()
+            )
+
+            existing_types = {row[0] for row in existing_files}
+            result = {
+                file_type: file_type in existing_types
+                for file_type in Program.REQUIRED_FILE_TYPES
+            }
+            return result
+        except Exception as e:
+            logger.error(f"필수 파일 확인 실패: {str(e)}")
+            raise
+
+    def get_program_files(
+        self, program_id: str, file_type: Optional[str] = None
+    ) -> List[Document]:
+        """프로그램의 파일 목록 조회 (Document 테이블에서)"""
+        try:
+            from .models import Document
+
+            query = (
+                self.db.query(Document)
+                .filter(Document.program_id == program_id)
+                .filter(Document.is_deleted.is_(False))
+            )
+
+            if file_type:
+                query = query.filter(Document.program_file_type == file_type)
+
+            return query.order_by(Document.create_dt).all()
+        except Exception as e:
+            logger.error(f"프로그램 파일 목록 조회 실패: {str(e)}")
+            raise
+
+    def update_program_status(
+        self,
+        program_id: str,
+        status: str,
+        job_id: Optional[str] = None,
+        completed_at: Optional[datetime] = None,
+        error_message: Optional[str] = None,
+    ) -> bool:
+        """프로그램 상태 업데이트"""
+        try:
+            program = self.get_program(program_id)
+            if program:
+                program.status = status
+                if job_id:
+                    program.job_id = job_id
+                if status == Program.STATUS_COMPLETED:
+                    program.completed_at = completed_at or datetime.now()
+                    # 완료 시 에러 메시지 초기화
+                    program.error_message = None
+                elif error_message:
+                    # 실패 시 에러 메시지 저장
+                    program.error_message = error_message
+                elif status != Program.STATUS_FAILED:
+                    # 실패가 아닌 다른 상태로 변경 시 에러 메시지 초기화
+                    program.error_message = None
+                self.db.commit()
+                return True
+            return False
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"프로그램 상태 업데이트 실패: {str(e)}")
+            raise
+
+    def mark_program_as_failed(
+        self, program_id: str, error_message: Optional[str] = None
+    ) -> bool:
+        """프로그램을 실패 상태로 표시 (실패 발생 시 호출)"""
+        try:
+            program = self.get_program(program_id)
+            if program:
+                program.status = Program.STATUS_FAILED
+                if error_message:
+                    program.error_message = error_message
+                self.db.commit()
+                return True
+            return False
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"프로그램 실패 상태 표시 실패: {str(e)}")
+            raise
+
+    def clear_error_message(self, program_id: str) -> bool:
+        """에러 메시지 초기화 (성공 시 호출)"""
+        try:
+            program = self.get_program(program_id)
+            if program:
+                program.error_message = None
+                self.db.commit()
+                return True
+            return False
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"에러 메시지 초기화 실패: {str(e)}")
+            raise
+
+    def delete_program(self, program_id: str) -> bool:
+        """프로그램 삭제 (소프트 삭제: is_used=False)"""
+        try:
+            program = self.get_program(program_id)
+            if program:
+                program.is_used = False
+                self.db.commit()
+                return True
+            return False
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"프로그램 삭제 실패: {str(e)}")
             raise

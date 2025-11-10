@@ -47,7 +47,8 @@ class ChatCRUD:
         message: str, 
         message_type: str = "text",
         status: str = None,
-        is_cancelled: bool = False
+        is_cancelled: bool = False,
+        plc_id: str = None
     ) -> ChatMessage:
         """메시지 생성"""
         try:
@@ -59,6 +60,7 @@ class ChatCRUD:
                 message_type=message_type,
                 status=status,
                 is_cancelled=is_cancelled,
+                plc_id=plc_id,
                 create_dt=datetime.now(ZoneInfo("Asia/Seoul"))
             )
             self.session.add(chat_message)
@@ -130,7 +132,7 @@ class ChatCRUD:
             logger.error(f"Database error in get_chat_or_create: {str(e)}")
             raise HandledException(ResponseCode.DATABASE_QUERY_ERROR, e=e)
     
-    def save_user_message(self, message_id: str, chat_id: str, user_id: str, message: str) -> ChatMessage:
+    def save_user_message(self, message_id: str, chat_id: str, user_id: str, message: str, plc_id: str = None) -> ChatMessage:
         """사용자 메시지 저장"""
         try:
             return self.create_message(
@@ -139,13 +141,14 @@ class ChatCRUD:
                 user_id=user_id,
                 message=message,
                 message_type="user",
-                status="completed"
+                status="completed",
+                plc_id=plc_id
             )
         except Exception as e:
             logger.error(f"Database error saving user message: {str(e)}")
             raise HandledException(ResponseCode.DATABASE_QUERY_ERROR, e=e)
     
-    def save_ai_message(self, message_id: str, chat_id: str, user_id: str, message: str, status: str = "completed") -> ChatMessage:
+    def save_ai_message(self, message_id: str, chat_id: str, user_id: str, message: str, status: str = "completed", plc_id: str = None) -> ChatMessage:
         """AI 메시지 저장"""
         try:
             return self.create_message(
@@ -154,7 +157,8 @@ class ChatCRUD:
                 user_id=user_id,
                 message=message,
                 message_type="assistant",
-                status=status
+                status=status,
+                plc_id=plc_id
             )
         except Exception as e:
             logger.error(f"Database error saving AI message: {str(e)}")
@@ -292,7 +296,7 @@ class ChatCRUD:
             logger.error(f"Database error getting active generating chats: {str(e)}")
             raise HandledException(ResponseCode.DATABASE_QUERY_ERROR, e=e)
     
-    def save_user_message_simple(self, message_id: str, chat_id: str, user_id: str, message: str):
+    def save_user_message_simple(self, message_id: str, chat_id: str, user_id: str, message: str, plc_id: str = None):
         """사용자 메시지 저장"""
         try:
             self.create_message(
@@ -301,13 +305,14 @@ class ChatCRUD:
                 user_id=user_id,
                 message=message,
                 message_type="user",
-                status="completed"
+                status="completed",
+                plc_id=plc_id
             )
         except Exception as e:
             logger.error(f"Database error saving user message: {str(e)}")
             raise HandledException(ResponseCode.DATABASE_QUERY_ERROR, e=e)
     
-    def save_ai_message_generating(self, message_id: str, chat_id: str, user_id: str):
+    def save_ai_message_generating(self, message_id: str, chat_id: str, user_id: str, plc_id: str = None):
         """AI 메시지를 generating 상태로 저장"""
         try:
             self.create_message(
@@ -316,7 +321,8 @@ class ChatCRUD:
                 user_id=user_id,
                 message="",  # 빈 메시지로 시작
                 message_type="assistant",
-                status="generating"
+                status="generating",
+                plc_id=plc_id
             )
         except Exception as e:
             logger.error(f"Database error saving AI message generating: {str(e)}")

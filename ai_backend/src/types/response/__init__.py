@@ -15,6 +15,12 @@ from .chat_response import (
     ChatListResponse
 )
 from .exceptions import HandledException, UnHandledException
+from .plc_response import PLCBasicInfo, PLCInfo
+from .program_response import (
+    ProgramInfo,
+    ProgramValidationResult,
+    RegisterProgramResponse,
+)
 from .response_code import ResponseCode
 
 __all__ = [
@@ -29,6 +35,11 @@ __all__ = [
     "Chat",
     "CreateChatResponse",
     "ChatListResponse",
+    "PLCBasicInfo",
+    "PLCInfo",
+    "ProgramValidationResult",
+    "ProgramInfo",
+    "RegisterProgramResponse",
     "HandledException",
     "UnHandledException",
     "ResponseCode"
