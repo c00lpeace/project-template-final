@@ -6,18 +6,21 @@
             "type": "debugpy",
             "request": "launch",
             "module": "uvicorn",
-            "python": "${workspaceFolder}/ai_backend/venv_py312/bin/python",
+            "python": "${workspaceFolder}/ai_backend/venv_py312/Scripts/python",
             "args": [
                 "src.main:app",
-                "--host", "0.0.0.0",
-                "--port", "8000",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                "8000",
                 "--reload",
-                "--log-level", "info"
+                "--log-level",
+                "info"
             ],
             "cwd": "${workspaceFolder}/ai_backend",
             "console": "internalConsole",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}/ai_backend:${workspaceFolder}/shared_core:${workspaceFolder}",
+                "PYTHONPATH": "${workspaceFolder}/ai_backend;${workspaceFolder}/shared_core;${workspaceFolder}",
                 "ENV": "development"
             },
             "envFile": "${workspaceFolder}/ai_backend/.env",
@@ -28,7 +31,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/doc_processor/base/start_prefect_server.py",
-            "python": "${workspaceFolder}/doc_processor/venv_py312/bin/python",
+            "python": "${workspaceFolder}/doc_processor/venv_py312/Scripts/python",
             "console": "internalConsole",
             "cwd": "${workspaceFolder}/doc_processor",
             "env": {
@@ -45,7 +48,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/doc_processor/base/deploy_pipeline.py",
-            "python": "${workspaceFolder}/doc_processor/venv_py312/bin/python",
+            "python": "${workspaceFolder}/doc_processor/venv_py312/Scripts/python",
             "console": "internalConsole",
             "cwd": "${workspaceFolder}/doc_processor",
             "env": {
@@ -62,7 +65,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/doc_processor/base/start_worker.py",
-            "python": "${workspaceFolder}/doc_processor/venv_py312/bin/python",
+            "python": "${workspaceFolder}/doc_processor/venv_py312/Scripts/python",
             "console": "internalConsole",
             "cwd": "${workspaceFolder}/doc_processor",
             "env": {
@@ -79,7 +82,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/doc_processor/run_document_pipeline.py",
-            "python": "${workspaceFolder}/doc_processor/venv_py312/bin/python",
+            "python": "${workspaceFolder}/doc_processor/venv_py312/Scripts/python",
             "console": "internalConsole",
             "cwd": "${workspaceFolder}/doc_processor",
             "env": {
@@ -95,7 +98,7 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${workspaceFolder}/doc_processor/run_batch_pipeline.py",
-            "python": "${workspaceFolder}/doc_processor/venv_py312/bin/python",
+            "python": "${workspaceFolder}/doc_processor/venv_py312/Scripts/python",
             "console": "internalConsole",
             "cwd": "${workspaceFolder}/doc_processor",
             "env": {
