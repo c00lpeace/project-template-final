@@ -133,3 +133,62 @@ class PLCMappingResponse(BaseModel):
     errors: List[str] = Field(
         default_factory=list, description="에러 메시지 리스트"
     )
+
+
+# ============================================================================
+# PLC Tree 구조 Response Models
+# ============================================================================
+
+
+class PLCTreeInfo(BaseModel):
+    """PLC 트리 정보 (최하위 노드)"""
+
+    plc_id: str = Field(..., description="PLC ID")
+    create_dt: datetime = Field(..., description="생성일시")
+    user: str = Field(..., description="생성자")
+
+    class Config:
+        from_attributes = True
+
+
+class PLCTreeUnitNode(BaseModel):
+    """Unit 노드"""
+
+    unit: str = Field(..., description="Unit명")
+    info: List[PLCTreeInfo] = Field(..., description="PLC 정보 리스트")
+
+
+class PLCTreeEquipmentNode(BaseModel):
+    """Equipment Group 노드"""
+
+    eqGrp: str = Field(..., description="Equipment Group명")
+    unitList: List[PLCTreeUnitNode] = Field(..., description="Unit 리스트")
+
+
+class PLCTreeLineNode(BaseModel):
+    """Line 노드"""
+
+    line: str = Field(..., description="Line명")
+    eqGrpList: List[PLCTreeEquipmentNode] = Field(
+        ..., description="Equipment Group 리스트"
+    )
+
+
+class PLCTreeProcessNode(BaseModel):
+    """Process 노드"""
+
+    proc: str = Field(..., description="Process명")
+    lineList: List[PLCTreeLineNode] = Field(..., description="Line 리스트")
+
+
+class PLCTreePlantNode(BaseModel):
+    """Plant 노드 (최상위)"""
+
+    plt: str = Field(..., description="Plant명")
+    procList: List[PLCTreeProcessNode] = Field(..., description="Process 리스트")
+
+
+class PLCTreeResponse(BaseModel):
+    """PLC 트리 구조 응답"""
+
+    data: List[PLCTreePlantNode] = Field(..., description="Plant 기준 트리 구조")

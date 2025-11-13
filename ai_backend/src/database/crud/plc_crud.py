@@ -519,3 +519,78 @@ class PLCCRUD:
             self.db.rollback()
             logger.error(f"PLC Program 매핑 저장 실패: {str(e)}")
             raise HandledException(ResponseCode.DATABASE_QUERY_ERROR, e=e)
+
+    def get_plc_tree_data(self, is_active: bool = True) -> List:
+        """
+        PLC 트리 구조용 데이터 조회 (Master 테이블 모두 JOIN)
+        
+        Args:
+            is_active: 활성 PLC만 조회 (기본값: True)
+            
+        Returns:
+            List: PLC 데이터 (계층 구조 정보 포함)
+        """
+        try:
+            from src.database.models.master_models import (
+                EquipmentGroupMaster,
+                LineMaster,
+                PlantMaster,
+                ProcessMaster,
+            )
+
+            query = (
+                self.db.query(
+                    PLC.id,
+                    PLC.plc_id,
+                    PLC.plc_name,
+                    PLC.unit,
+                    PLC.create_dt,
+                    PLC.create_user,
+                    # Plant
+                    PlantMaster.plant_id.label("plant_id"),
+                    PlantMaster.plant_code.label("plant_code"),
+                    PlantMaster.plant_name.label("plant_name"),
+                    PlantMaster.display_order.label("plant_order"),
+                    # Process
+                    ProcessMaster.process_id.label("process_id"),
+                    ProcessMaster.process_code.label("process_code"),
+                    ProcessMaster.process_name.label("process_name"),
+                    ProcessMaster.display_order.label("process_order"),
+                    # Line
+                    LineMaster.line_id.label("line_id"),
+                    LineMaster.line_code.label("line_code"),
+                    LineMaster.line_name.label("line_name"),
+                    LineMaster.display_order.label("line_order"),
+                    # Equipment Group
+                    EquipmentGroupMaster.equipment_group_id.label("eq_grp_id"),
+                    EquipmentGroupMaster.equipment_group_code.label("eq_grp_code"),
+                    EquipmentGroupMaster.equipment_group_name.label("eq_grp_name"),
+                    EquipmentGroupMaster.display_order.label("eq_grp_order"),
+                )
+                .outerjoin(
+                    PlantMaster, PLC.plant_id_snapshot == PlantMaster.plant_id
+                )
+                .outerjoin(
+                    ProcessMaster, PLC.process_id_snapshot == ProcessMaster.process_id
+                )
+                .outerjoin(LineMaster, PLC.line_id_snapshot == LineMaster.line_id)
+                .outerjoin(
+                    EquipmentGroupMaster,
+                    PLC.equipment_group_id_snapshot
+                    == EquipmentGroupMaster.equipment_group_id,
+                )
+                .filter(PLC.is_active == is_active)
+                .order_by(
+                    PlantMaster.display_order.nullslast(),
+                    ProcessMaster.display_order.nullslast(),
+                    LineMaster.display_order.nullslast(),
+                    EquipmentGroupMaster.display_order.nullslast(),
+                    PLC.unit.nullslast(),
+                )
+            )
+
+            return query.all()
+
+        except Exception as e:
+            logger.error(f"PLC 트리 데이터 조회 실패: {str(e)}")
+            raise HandledException(ResponseCode.DATABASE_QUERY_ERROR, e=e)

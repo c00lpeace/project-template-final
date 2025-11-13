@@ -7,16 +7,82 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from src.core.dependencies import get_db
 from src.database.crud.plc_crud import PLCCRUD
+from src.api.services.plc_tree_service import PLCTreeService
 from src.types.response.plc_response import (
     PLCBasicInfo,
     PLCListResponse,
     PLCListItem,
     PLCMappingRequest,
     PLCMappingResponse,
+    PLCTreeResponse,
 )
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/plc", tags=["plc-management"])
+
+
+@router.get(
+    "/tree",
+    response_model=PLCTreeResponse,
+    summary="PLC 트리 구조 조회",
+    description="""
+    PLC 목록을 계층적 트리 구조로 조회합니다.
+    
+    **화면 용도:** PLC 관리 화면의 트리 뷰
+    
+    **계층 구조:**
+    - Plant (공장)
+      - Process (공정)
+        - Line (라인)
+          - Equipment Group (장비 그룹)
+            - Unit (호기)
+              - PLC 정보 (plc_id, create_dt, user)
+    
+    **필터링:**
+    - `is_active`: 활성 PLC만 조회 (기본값: True)
+    
+    **정렬:**
+    - Master 테이블의 display_order로 자동 정렬
+    - Plant -> Process -> Line -> Equipment Group -> Unit 순서
+    
+    **응답 데이터:**
+    - 계층적 트리 구조 (JSON)
+    - 각 레벨에 이름 포함
+    - 최하위에 PLC 상세 정보
+    
+    **사용 예시:**
+    - 전체 트리: `GET /plc/tree`
+    - 비활성 포함: `GET /plc/tree?is_active=false`
+    """,
+)
+def get_plc_tree(
+    is_active: bool = Query(
+        True, description="활성 PLC만 조회 (기본값: True)"
+    ),
+    db: Session = Depends(get_db),
+):
+    """
+    PLC 트리 구조 조회
+
+    PLC 목록을 Plant -> Process -> Line -> Equipment Group -> Unit 계층으로 반환합니다.
+    """
+    try:
+        plc_crud = PLCCRUD(db)
+        
+        # SQL JOIN으로 모든 데이터 한 번에 조회
+        rows = plc_crud.get_plc_tree_data(is_active=is_active)
+        
+        # 트리 구조로 변환
+        tree_response = PLCTreeService.build_plc_tree(rows)
+        
+        return tree_response
+        
+    except Exception as e:
+        logger.error("PLC 트리 조회 실패: %s", str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"PLC 트리 조회 중 오류가 발생했습니다: {str(e)}",
+        ) from e
 
 
 @router.get("/{plc_id}", response_model=PLCBasicInfo)
